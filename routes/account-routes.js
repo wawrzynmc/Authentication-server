@@ -19,8 +19,9 @@ const router = express.Router();
 /**
  * * ---- DEFINITIONS
  * @swagger
- * definitions:
- *   User:
+ * components:
+ *   schemas:
+ *     User:
  *       type: object
  *       required: [name, email, password]
  *       properties:
@@ -56,6 +57,11 @@ const router = express.Router();
  *          name: Fluffy User
  *          email: fluffy_u@xmail.com
  *          password: testpassword
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT    
 */
 
 
@@ -66,7 +72,7 @@ const router = express.Router();
  *  /api/account/signup/:
  *    post:
  *      tags: [Account]
- *      summary: Creates a new user.
+ *      summary: Create new user
  *      consumes:
  *       - application/json
  *      parameters:
@@ -104,6 +110,26 @@ const router = express.Router();
  *           description: Internal server error
  */
 router.post('/signup', validators.signupValidator, accountControllers.signupController);
+
+/**
+ * @swagger 
+ * path: 
+ *  /api/account/activate/:
+ *    post:
+ *      tags: [Account]
+ *      summary: Activate user
+ *      security:
+ *        - bearerAuth: []
+ *      responses:
+ *         204:
+ *           description: User account has been activated
+ *         403:
+ *           description: Authentication failed
+ *         500:
+ *           description: Internal server error
+ */
+router.post('/activate', accountControllers.activateController);
+
 /**
  * @swagger 
  * path: 
@@ -112,10 +138,11 @@ router.post('/signup', validators.signupValidator, accountControllers.signupCont
  *      tags: [Account]
  *      
  */
+
 router.post('/signin', accountControllers.signinController);
 router.post('/signin/google', accountControllers.signinGoogleController);
 router.post('/signin/facebook', accountControllers.signinFacebookController);
-router.post('/activate', accountControllers.activateController);
+
 router.put('/password/forgot', accountControllers.forgotPasswordController);
 router.put('/password/reset', accountControllers.resetPasswordController);
 
