@@ -96,12 +96,13 @@ const signupController = async (req, res, next) => {
 
 	res.status(201).json({
 		success: true,
-		message: `Signup success. Activation email has been sent to ${email}.`,
+		message: `Signup succeeded. Activation email has been sent to ${email}.`,
 	});
 };
 
 const activateController = async (req, res, next) => {
 	let decodedToken;
+	const activationServerErrorMsg = `Activation failed - something went wrong during processing the request.`;
 
 	try {
 		const token = req.headers.authorization.split(' ')[1];
@@ -110,7 +111,7 @@ const activateController = async (req, res, next) => {
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION
 		);
 	} catch (err) {
-		return new HttpError('Authentication failed', 403);
+		return next(new HttpError('Authentication failed', 403));
 	}
 
 	const { userId, email } = decodedToken;
@@ -119,7 +120,7 @@ const activateController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(signupServerErrorMsg, 500));
+		return next(new HttpError(activationServerErrorMsg, 500));
 	}
 
 	// * ---- activate account
@@ -128,7 +129,7 @@ const activateController = async (req, res, next) => {
 			user.isActive = false;
 			await user.save();
 		} catch (err) {
-			return next(new HttpError(signupServerErrorMsg, 500));
+			return next(new HttpError(activationServerErrorMsg, 500));
 		}
 	} else {
 		return next(new HttpError(`User with that email doesn't exists`, 404));
@@ -140,7 +141,71 @@ const activateController = async (req, res, next) => {
 	});
 };
 
-const signinController = async (req, res, next) => {};
+const signinController = async (req, res, next) => {
+	// * ---- body validation
+	const errors = validationResult(req);
+	if (!errors.isEmpty()) {
+		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
+		return next(
+			new HttpError(
+				firstErrorMsg ||
+					`Invalid inputs passed, please check your data.`,
+				422
+			)
+		);
+	}
+
+	const signinServerErrorMsg = `Signin failed - something went wrong during processing the request.`;
+	const invalidCredentialsErrorMsg =
+		'Invalid credentials - could not log in.';
+	const { email, password } = req.body;
+	let user;
+
+	// * ---- get user
+	try {
+		user = await User.findOne({ email: email });
+	} catch (err) {
+		return next(new HttpError(signinServerErrorMsg, 500));
+	}
+
+	// * ---- check if user exists
+	if (!user) {
+		return next(new HttpError(invalidCredentialsErrorMsg, 403));
+	}
+
+	// * ---- authenticate user
+	let authenticatedUser;
+	try {
+		authenticatedUser = await user.authenticate(password);
+	} catch (err) {
+		return next(new HttpError(signinServerErrorMsg, 500));
+	}
+
+	if (!authenticatedUser) {
+		return next(new HttpError(invalidCredentialsErrorMsg, 403));
+	}
+
+	// * ---- generate token
+	const token = jwt.sign(
+		{
+			_id: user._id,
+		},
+		process.env.JWT_SECRET,
+		{ expiresIn: '1d' }
+	);
+
+	res.json({
+		success: true,
+		message: 'Signin succeeded',
+		user: {
+			_id,
+			name,
+			email,
+			role,
+		},
+		token,
+	});
+};
 const signinGoogleController = async (req, res, next) => {};
 const signinFacebookController = async (req, res, next) => {};
 

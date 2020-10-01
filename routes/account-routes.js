@@ -138,7 +138,6 @@ router.post('/activate', accountControllers.activateController);
  *      tags: [Account]
  *      
  */
-
 router.post('/signin', accountControllers.signinController);
 router.post('/signin/google', accountControllers.signinGoogleController);
 router.post('/signin/facebook', accountControllers.signinFacebookController);
