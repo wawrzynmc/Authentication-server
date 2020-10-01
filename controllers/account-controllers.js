@@ -19,7 +19,7 @@ require('dotenv').config({
 sgMail.setApiKey(process.env.SG_MAIL_KEY);
 
 const signupController = async (req, res, next) => {
-	// ---- body validation
+	// * ---- body validation
 	const errors = validationResult(req);
 	if (!errors.isEmpty()) {
 		console.log(errors);
@@ -31,29 +31,44 @@ const signupController = async (req, res, next) => {
 	const signupServerErrorMsg = `Signing up failed - something went wrong during processing the request.`;
 	const { name, email, password } = req.body;
 
-	// ---- check if user already exists
-	User.findOne({ email: email }).exec((err, user) => {
-		if (user) {
-			return next(
-				new HttpError(`User with that email already exists.`, 409)
-			);
-		}
-		if (err) {
-			return next(new HttpError(signupServerErrorMsg, 500));
-		}
-	});
+	// * ---- check if user already exists
+	try {
+		existingUser = await User.findOne({ email: email });
+	} catch (err) {
+		return next(new HttpError(signupServerErrorMsg, 500));
+	}
 
-	// -- encrypt password
-	let encryptedPassword = encrypt(password);
+	// check if user exists
+	if (existingUser) {
+		return next(new HttpError(`User with that email already exists.`, 409));
+	}
+
+	// * ---- create user
+	const createdUser = new User({
+		name,
+		email,
+		password,
+	});
+	try {
+		await createdUser.save();
+	} catch (err) {
+		return next(
+			new HttpError(
+				`Signup failed - something went wrong during processing the request.`,
+				500
+			)
+		);
+	}
+
+	console.log(createdUser);
 
 	// ---- generate token to activate account
 	let token;
 	try {
 		token = jwt.sign(
 			{
-				name,
+				userId: createdUser.id,
 				email,
-				password: encryptedPassword,
 			},
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
 			{ expiresIn: '15m' }
@@ -84,7 +99,7 @@ const signupController = async (req, res, next) => {
 
 	res.status(201).json({
 		success: true,
-		message: `Email has been sent to ${email}.`,
+		message: `Signup success. Activation email has been sent to ${email}.`,
 	});
 };
 
@@ -96,14 +111,9 @@ const activateController = async (req, res, next) => {
 			token,
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION
 		);
-		const { name, email, password: encryptedPassword } = decodedToken;
-		let password = decrypt(encryptedPassword)
-		console.log(password, name)
-		const user = new User({
-			name,
-			email,
-			password,
-		});
+		const { userId, email } = decodedToken;
+
+		// find user with id and active account
 		try {
 			await user.save();
 		} catch (err) {

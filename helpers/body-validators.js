@@ -23,11 +23,9 @@ exports.signupValidator = [
         .bail()
 		.isLength({
 			min: 6,
+			max: 100,
 		})
-        .withMessage('Password must contain at least 6 characters.')
-        .bail()
-		.matches(/\d/)
-		.withMessage('Password must contain at least one number'),
+        .withMessage('Password must contain at least 6 characters.'),
 	check('passwordConfirmation')
 		.notEmpty()
         .withMessage('Password confirmation is required.')

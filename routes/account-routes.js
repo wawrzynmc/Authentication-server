@@ -38,7 +38,12 @@ const router = express.Router();
  *           description: User password
  *         role:
  *           type: string
+ *           default: user
  *           description: User role
+ *         isActive:
+ *           type: boolean
+ *           default: false
+ *           description: User account status
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -51,7 +56,6 @@ const router = express.Router();
  *          name: Fluffy User
  *          email: fluffy_u@xmail.com
  *          password: testpassword
- *              
 */
 
 
@@ -61,8 +65,43 @@ const router = express.Router();
  * path: 
  *  /api/account/signup/:
  *    post:
- *      tags: 
- *      - "Account"
+ *      tags: [Account]
+ *      summary: Creates a new user.
+ *      consumes:
+ *       - application/json
+ *      parameters:
+ *        - in: body
+ *          name: user
+ *          description: The user to create.
+ *          schema:
+ *            type: object
+ *            required: [name, email, password, passwordConfirmation]
+ *            properties:
+ *              name:
+ *                type: string
+ *                description: Name could has 4 <> 32 characters
+ *              email:
+ *                type: string
+ *              password:
+ *                type: string
+ *                description: Password should contains at least 6. characters
+ *              passwordConfirmation:
+ *                type: string
+ *                description: Password confirmation must match with password
+ *            example:
+ *              name: userName
+ *              email: user@user.com
+ *              password: testpassword
+ *              passwordConfirmation: testpassword
+ *      responses:
+ *         201:
+ *           description: User has been created
+ *         409:
+ *           description: User already exists in database
+ *         422:
+ *           description: Invalid inputs has been provided
+ *         500:
+ *           description: Internal server error
  */
 router.post('/signup', validators.signupValidator, accountControllers.signupController);
 /**
@@ -71,16 +110,7 @@ router.post('/signup', validators.signupValidator, accountControllers.signupCont
  *  /api/account/signin/:
  *    post:
  *      tags: [Account]
- *      consumes: [application/json]
- *      produces: [appliaction/json]
- *      parameters:
- *      - in: "body"
- *        name: "body"
- *        description: User data that have to be provided
- *        required: true
- *        schema:
- *          $ref: '#/definitions/User'
- *
+ *      
  */
 router.post('/signin', accountControllers.signinController);
 router.post('/signin/google', accountControllers.signinGoogleController);

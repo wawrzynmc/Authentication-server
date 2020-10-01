@@ -33,6 +33,10 @@ const userSchema = new Schema(
 			type: String,
 			default: '',
 		},
+		isActive: {
+			type: Boolean,
+			default: false
+		}
 	},
 	{ timestamps: true }
 );
