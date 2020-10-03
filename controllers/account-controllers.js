@@ -1,13 +1,13 @@
-// libraries
+// -- libraries
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
-const sgMail = require('@sendgrid/mail');
 
-// my own imports
+// -- my own imports
 const HttpError = require('../helpers/http-error');
 const { decrypt, encrypt } = require('../helpers/encrypt-data');
+const {accountActivation} = require('../helpers/mailers/appMailer')
 
-// models
+// -- models
 const User = require('../models/user-model');
 
 // -- config .env to ./config/config.env
@@ -15,10 +15,8 @@ require('dotenv').config({
 	path: './config/config.env',
 });
 
-// -- configure sgMail
-sgMail.setApiKey(process.env.SG_MAIL_KEY);
 
-// -- CONTROLLERS
+// * -- CONTROLLERS
 const signupController = async (req, res, next) => {
 	// * ---- body validation
 	const errors = validationResult(req);
@@ -29,7 +27,7 @@ const signupController = async (req, res, next) => {
 	}
 
 	const signupServerErrorMsg = `Signing up failed - something went wrong during processing the request.`;
-	const { name, email, password } = req.body;
+	const { name, email, password1: password } = req.body;
 
 	// * ---- check if user already exists
 	try {
@@ -74,22 +72,12 @@ const signupController = async (req, res, next) => {
 		return new HttpError(signupServerErrorMsg, 500);
 	}
 
-	// * ---- create and send activation email
-	const emailData = {
-		to: email,
-		from: process.env.MAIL_FROM,
-		subject: 'Activate your account',
-		html: `
-            <h1>Click on the link to activate your account</h1>
-            <p><a href="${process.env.CLIENT_URL}/account/activate/${token}">CLICK</a> to activate</p>
-            <hr/>
-            <p>This email contain sensitive information</p>
-            <p>${process.env.CLIENT_URL}</p>
-        `,
-	};
-
+	// * ---- send activation email
 	try {
-		await sgMail.send(emailData);
+		await accountActivation({
+			to: email,
+			href: `${process.env.CLIENT_URL}/account/activate/${token}`
+		})
 	} catch (err) {
 		return next(new HttpError(signupServerErrorMsg, 500));
 	}
@@ -167,6 +155,8 @@ const signinController = async (req, res, next) => {
 	} catch (err) {
 		return next(new HttpError(signinServerErrorMsg, 500));
 	}
+
+	// ! check if user is active
 
 	// * ---- check if user exists
 	if (!user) {

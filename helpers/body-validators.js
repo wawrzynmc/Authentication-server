@@ -17,7 +17,7 @@ exports.signupValidator = [
 		.normalizeEmail()
 		.isEmail()
         .withMessage('Invalid email address.'),
-	check('password')
+	check('password1')
 		.notEmpty()
         .withMessage('Password is required.')
         .bail()
@@ -26,11 +26,11 @@ exports.signupValidator = [
 			max: 100,
 		})
         .withMessage('Password must contain at least 6 characters.'),
-	check('passwordConfirmation')
+	check('password2')
 		.notEmpty()
         .withMessage('Password confirmation is required.')
         .bail()
-        .custom((value, { req }) => value === req.body.password)
+        .custom((value, { req }) => value === req.body.password1)
         .withMessage('Password and password confirmation have to match.')
 ];
 

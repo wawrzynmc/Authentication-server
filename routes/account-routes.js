@@ -73,32 +73,37 @@ const router = express.Router();
  *    post:
  *      tags: [Account]
  *      summary: Create new user
- *      consumes:
- *       - application/json
- *      parameters:
- *        - in: body
- *          name: user
- *          description: The user to create.
- *          schema:
- *            type: object
- *            required: [name, email, password, passwordConfirmation]
- *            properties:
- *              name:
- *                type: string
- *                description: Name could has 4 <> 32 characters
- *              email:
- *                type: string
- *              password:
- *                type: string
- *                description: Password should contains at least 6. characters
- *              passwordConfirmation:
- *                type: string
- *                description: Password confirmation must match with password
- *            example:
- *              name: userName
- *              email: user@user.com
- *              password: testpassword
- *              passwordConfirmation: testpassword
+ *      requestBody:
+ *        require: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                name:
+ *                  type: string
+ *                  description: Name could has 4 <> 32 characters
+ *                email:
+ *                  type: string
+ *                password1:
+ *                  type: string
+ *                  description: Password1 should contains at least 6. characters
+ *                password2:
+ *                  type: string
+ *                  description: Password2 must match with password
+ *            examples:
+ *              validUser:
+ *                value:
+ *                  name: userName
+ *                  email: user@user.com
+ *                  password1: testpassword
+ *                  password2: testpassword
+ *              invalidUser:
+ *                value:
+ *                  name: name
+ *                  email: user@user.com
+ *                  password1: testpasswo
+ *                  password2: testpassword
  *      responses:
  *         201:
  *           description: User has been created
@@ -118,8 +123,6 @@ router.post('/signup', validators.signupValidator, accountControllers.signupCont
  *    post:
  *      tags: [Account]
  *      summary: Activate user
- *      security:
- *        - bearerAuth: []
  *      responses:
  *         204:
  *           description: User account has been activated
@@ -136,14 +139,55 @@ router.post('/activate', accountControllers.activateController);
  *  /api/account/signin/:
  *    post:
  *      tags: [Account]
+ *      summary: Signin user
+ *      responses:
+ *         204:
+ *           description: User account has been activated
+ *         403:
+ *           description: Authentication failed
+ *         500:
+ *           description: Internal server error
  *      
  */
 router.post('/signin', accountControllers.signinController);
 router.post('/signin/google', accountControllers.signinGoogleController);
 router.post('/signin/facebook', accountControllers.signinFacebookController);
 
-router.put('/password/forgot', accountControllers.forgotPasswordController);
-router.put('/password/reset', accountControllers.resetPasswordController);
+/**
+ * @swagger 
+ * path: 
+ *  /api/account/forgot-password/:
+ *    post:
+ *      tags: [Account]
+ *      summary: Allows to trigger changing password action
+ *      responses:
+ *         204:
+ *           description: User account has been activated
+ *         403:
+ *           description: Authentication failed
+ *         500:
+ *           description: Internal server error
+ *      
+ */
+router.put('/forgot-password', accountControllers.forgotPasswordController);
+
+/**
+ * @swagger 
+ * path: 
+ *  /api/account/reset-password/:
+ *    post:
+ *      tags: [Account]
+ *      summary: Change/reset users password
+ *      responses:
+ *         204:
+ *           description: User account has been activated
+ *         403:
+ *           description: Authentication failed
+ *         500:
+ *           description: Internal server error
+ *      
+ */
+router.put('/reset-password', accountControllers.resetPasswordController);
 
 // -- export
 module.exports = router;
