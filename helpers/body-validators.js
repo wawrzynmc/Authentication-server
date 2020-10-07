@@ -12,7 +12,9 @@ exports.signupValidator = [
 			max: 32,
 		})
         .withMessage('Name must be between 4 to 32 characters.')
-        .bail(),
+		.bail()
+		.custom((value) => (/^[A-Za-z]+$/.test(value)))
+		.withMessage('Name has to contain only alphabetical characters.'),
 	check('email')
 		.normalizeEmail()
 		.isEmail()
