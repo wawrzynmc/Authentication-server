@@ -136,6 +136,23 @@ router.post('/activate', accountControllers.activateController);
 /**
  * @swagger 
  * path: 
+ *  /api/account/send-activation-email/:
+ *    post:
+ *      tags: [Account]
+ *      summary: Send activation email
+ *      responses:
+ *         202:
+ *           description: Email has been sent
+ *         403:
+ *           description: Authentication failed
+ *         500:
+ *           description: Internal server error
+ */
+router.post('/activate', accountControllers.activateController);
+
+/**
+ * @swagger 
+ * path: 
  *  /api/account/signin/:
  *    post:
  *      tags: [Account]

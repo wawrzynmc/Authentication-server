@@ -76,7 +76,7 @@ app.use((error, req, res, next) => {
 	const status = error.code || 500;
 	const message = error.message || 'An unknown error occured';
 	const data = error.data;
-	res.status(status).json({ success: false, message: message, data: data });
+	res.status(status).json({ success: false, message: message, data: data, status: status });
 });
 
 // -- connect to Database

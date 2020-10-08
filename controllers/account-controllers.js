@@ -122,7 +122,7 @@ const activateController = async (req, res, next) => {
 		);
 	}
 
-	const { userId, email } = decodedToken;
+	const { userId, name, email } = decodedToken;
 
 	// * ---- find user
 	// -- check if user is already active
@@ -134,11 +134,15 @@ const activateController = async (req, res, next) => {
 
 	// * ---- activate account
 	if (user) {
-		try {
-			user.isActive = false;
-			await user.save();
-		} catch (err) {
-			return next(new HttpError(activationServerErrorMsg, 500));
+		if (user.isActive) {
+			return next(new HttpError('Your account has been already activated', 403));
+		} else {
+			try {
+				user.isActive = true;
+				await user.save();
+			} catch (err) {
+				return next(new HttpError(activationServerErrorMsg, 500));
+			}
 		}
 	} else {
 		return next(new HttpError(`User with that email doesn't exists`, 404));
