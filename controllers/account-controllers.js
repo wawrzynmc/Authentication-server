@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // -- my own imports
 const HttpError = require('../helpers/http-error');
 const { decrypt, encrypt } = require('../helpers/encrypt-data');
-const {accountActivation} = require('../helpers/mailers/appMailer')
+const { accountActivation } = require('../helpers/mailers/appMailer');
 
 // -- models
 const User = require('../models/user-model');
@@ -14,7 +14,6 @@ const User = require('../models/user-model');
 require('dotenv').config({
 	path: './config/config.env',
 });
-
 
 // * -- CONTROLLERS
 const signupController = async (req, res, next) => {
@@ -27,34 +26,47 @@ const signupController = async (req, res, next) => {
 	}
 
 	const signupServerErrorMsg = `Signing up failed - something went wrong during processing the request.`;
-	const { name, email, password1: password } = req.body;
+	let { name, email, password1: password } = req.body;
+	let user, successMsg;
 
 	// * ---- check if user already exists
 	try {
+		// add isActive = true
 		existingUser = await User.findOne({ email: email });
 	} catch (err) {
 		return next(new HttpError(signupServerErrorMsg, 500));
 	}
 
 	if (existingUser) {
-		return next(new HttpError(`User with that email already exists.`, 409));
-	}
+		let userIsActive = existingUser.isActive;
 
-	// * ---- create user
-	const createdUser = new User({
-		name,
-		email,
-		password,
-	});
-	try {
-		await createdUser.save();
-	} catch (err) {
-		return next(
-			new HttpError(
-				`Signup failed - something went wrong during processing the request.`,
-				500
-			)
-		);
+		if (userIsActive) {
+			return next(
+				new HttpError(`User with that email already exists.`, 409)
+			);
+		} else {
+			user = existingUser;
+			name = user.name;
+			successMsg = `Dear ${name}, seems like you have already create account, but it is deactivated. We send you an activation email.`;
+		}
+	} else {
+		// * ---- create user
+		successMsg = `Signup succeeded. Activation email has been sent to ${email}.`;
+		user = new User({
+			name,
+			email,
+			password,
+		});
+		try {
+			await user.save();
+		} catch (err) {
+			return next(
+				new HttpError(
+					`Signup failed - something went wrong during processing the request.`,
+					500
+				)
+			);
+		}
 	}
 
 	// * ---- generate token to activate account
@@ -62,7 +74,8 @@ const signupController = async (req, res, next) => {
 	try {
 		token = jwt.sign(
 			{
-				userId: createdUser.id,
+				userId: user.id,
+				name,
 				email,
 			},
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
@@ -76,15 +89,17 @@ const signupController = async (req, res, next) => {
 	try {
 		await accountActivation({
 			to: email,
-			href: `${process.env.CLIENT_URL}/account/activate/${token}`
-		})
+			name: name || 'unknown user',
+			activationHref: `${process.env.CLIENT_URL}/account/activate/${token}`,
+			resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
+		});
 	} catch (err) {
 		return next(new HttpError(signupServerErrorMsg, 500));
 	}
 
 	res.status(201).json({
 		success: true,
-		message: `Signup succeeded. Activation email has been sent to ${email}.`,
+		message: successMsg,
 	});
 };
 
@@ -99,12 +114,18 @@ const activateController = async (req, res, next) => {
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION
 		);
 	} catch (err) {
-		return next(new HttpError('Authentication failed', 403));
+		return next(
+			new HttpError(
+				'Authentication failed. Please, try to activate your account once more.',
+				403
+			)
+		);
 	}
 
 	const { userId, email } = decodedToken;
 
 	// * ---- find user
+	// -- check if user is already active
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
