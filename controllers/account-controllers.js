@@ -25,7 +25,7 @@ const signupController = async (req, res, next) => {
 		return next(new HttpError(firstErrorMsg || optionalMsg, 422));
 	}
 
-	const signupServerErrorMsg = `Signing up failed - something went wrong during processing the request.`;
+	const serverErrorMsg = `Signing up failed - something went wrong during processing the request.`;
 	let { name, email, password1: password } = req.body;
 	let user, successMsg;
 
@@ -34,7 +34,7 @@ const signupController = async (req, res, next) => {
 		// add isActive = true
 		existingUser = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(signupServerErrorMsg, 500));
+		return next(new HttpError(serverErrorMsg, 500));
 	}
 
 	if (existingUser) {
@@ -88,7 +88,7 @@ const signupController = async (req, res, next) => {
 			resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
 		});
 	} catch (err) {
-		return next(new HttpError(signupServerErrorMsg, 500));
+		return next(new HttpError(serverErrorMsg, 500));
 	}
 
 	res.status(201).json({
@@ -99,8 +99,9 @@ const signupController = async (req, res, next) => {
 
 const activateController = async (req, res, next) => {
 	let decodedToken;
-	const activationServerErrorMsg = `Activation failed - something went wrong during processing the request.`;
+	const serverErrorMsg = `Activation failed - something went wrong during processing the request.`;
 
+	// * ---- check token
 	try {
 		const token = req.headers.authorization.split(' ')[1];
 		decodedToken = jwt.verify(
@@ -116,6 +117,7 @@ const activateController = async (req, res, next) => {
 		);
 	}
 
+	// * ---- get data from token
 	const { userId, name, email } = decodedToken;
 
 	// * ---- find user
@@ -123,7 +125,7 @@ const activateController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(activationServerErrorMsg, 500));
+		return next(new HttpError(serverErrorMsg, 500));
 	}
 
 	// * ---- activate account
@@ -137,7 +139,7 @@ const activateController = async (req, res, next) => {
 				user.isActive = true;
 				await user.save();
 			} catch (err) {
-				return next(new HttpError(activationServerErrorMsg, 500));
+				return next(new HttpError(serverErrorMsg, 500));
 			}
 		}
 	} else {
@@ -207,6 +209,11 @@ const sendActivationEmailController = async (req, res, next) => {
 	} else {
 		return next(new HttpError(`User with that email doesn't exists`, 404));
 	}
+
+	res.status(200).json({
+		success: true,
+		message: `Activation email has been sent to ${email}.`,
+	});
 };
 
 const signinController = async (req, res, next) => {
