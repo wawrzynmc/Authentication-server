@@ -151,8 +151,8 @@ router.post('/activate', accountControllers.activateController);
  *           description: Internal server error
  */
 router.post(
-    '/send-activation-email',
-    validators.emailValidator,
+	'/send-activation-email',
+	validators.emailValidator,
 	accountControllers.sendActivationEmailController
 );
 
@@ -172,7 +172,11 @@ router.post(
  *           description: Internal server error
  *
  */
-router.post('/signin', accountControllers.signinController);
+router.post(
+	'/signin',
+	validators.signinValidator,
+	accountControllers.signinController
+);
 router.post('/signin/google', accountControllers.signinGoogleController);
 router.post('/signin/facebook', accountControllers.signinFacebookController);
 

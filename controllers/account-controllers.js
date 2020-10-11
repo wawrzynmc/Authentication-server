@@ -103,7 +103,7 @@ const activateController = async (req, res, next) => {
 
 	// * ---- check token
 	try {
-		const token = req.headers.authorization.split(' ')[1];
+		const { token } = req.body;
 		decodedToken = jwt.verify(
 			token,
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION
@@ -112,11 +112,11 @@ const activateController = async (req, res, next) => {
 		return next(
 			new HttpError(
 				'Authentication failed. Please, try to activate your account once more.',
-				403
+				401
 			)
 		);
 	}
-
+	
 	// * ---- get data from token
 	const { userId, name, email } = decodedToken;
 
@@ -146,7 +146,7 @@ const activateController = async (req, res, next) => {
 		return next(new HttpError(`User with that email doesn't exists`, 404));
 	}
 
-	res.status(204).json({
+	res.status(200).json({
 		success: true,
 		message: `Account user with email: ${email} has been activated`,
 	});
@@ -253,7 +253,7 @@ const signinController = async (req, res, next) => {
 	// * ---- authenticate user
 	let authenticatedUser;
 	try {
-		authenticatedUser = await user.authenticate(password);
+		authenticatedUser = await user.validPasswords(password);
 	} catch (err) {
 		return next(new HttpError(signinServerErrorMsg, 500));
 	}
@@ -265,20 +265,21 @@ const signinController = async (req, res, next) => {
 	// * ---- generate token
 	const token = jwt.sign(
 		{
-			_id: user._id,
+			userId: authenticatedUser.id,
+			email: authenticatedUser.email
 		},
 		process.env.JWT_SECRET,
-		{ expiresIn: '1d' }
+		{ expiresIn: '1h' }
 	);
 
 	res.json({
 		success: true,
 		message: 'Signin succeeded',
 		user: {
-			_id,
-			name,
-			email,
-			role,
+			id: authenticatedUser.id,
+			name: authenticatedUser.name,
+			email :authenticatedUser.email,
+			role: authenticatedUser.role,
 		},
 		token,
 	});

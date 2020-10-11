@@ -73,7 +73,7 @@ userSchema.methods = {
 	},
 
 	// compare passwords
-	validPassword: function (password) {
+	validPasswords: function (password) {
 		return this.encryptPassword(password) === this.hashed_password;
 	},
 };
