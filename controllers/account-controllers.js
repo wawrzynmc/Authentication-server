@@ -69,10 +69,9 @@ const signupController = async (req, res, next) => {
 		}
 	}
 
-	// * ---- generate token to activate account
-	let token;
 	try {
-		token = jwt.sign(
+		// * ---- generate token to activate account
+		let token = jwt.sign(
 			{
 				userId: user.id,
 				name,
@@ -81,12 +80,7 @@ const signupController = async (req, res, next) => {
 			process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
 			{ expiresIn: '15m' }
 		);
-	} catch (err) {
-		return new HttpError(signupServerErrorMsg, 500);
-	}
-
-	// * ---- send activation email
-	try {
+		// * ---- send activation email
 		await accountActivation({
 			to: email,
 			name: name || 'unknown user',
@@ -135,7 +129,9 @@ const activateController = async (req, res, next) => {
 	// * ---- activate account
 	if (user) {
 		if (user.isActive) {
-			return next(new HttpError('Your account has been already activated', 403));
+			return next(
+				new HttpError('Your account has been already activated', 403)
+			);
 		} else {
 			try {
 				user.isActive = true;
@@ -152,6 +148,65 @@ const activateController = async (req, res, next) => {
 		success: true,
 		message: `Account user with email: ${email} has been activated`,
 	});
+};
+
+const sendActivationEmailController = async (req, res, next) => {
+	// * ---- body validation
+	const errors = validationResult(req);
+	if (!errors.isEmpty()) {
+		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
+		return next(
+			new HttpError(
+				firstErrorMsg ||
+					`Invalid inputs passed, please check your data.`,
+				422
+			)
+		);
+	}
+
+	const serverErrorMsg = `Can not send email - something went wrong during processing the request.`;
+	const { email } = req.body;
+
+	// * ---- find user
+	// -- check if user is already active
+	try {
+		user = await User.findOne({ email: email });
+	} catch (err) {
+		return next(new HttpError(serverErrorMsg, 500));
+	}
+
+	// * ---- activate account
+	if (user) {
+		if (user.isActive) {
+			return next(
+				new HttpError('Your account has been already activated', 403)
+			);
+		} else {
+			try {
+				// * ---- generate token to activate account
+				let token = jwt.sign(
+					{
+						userId: user.id,
+						name: user.name,
+						email,
+					},
+					process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
+					{ expiresIn: '15m' }
+				);
+				// * ---- send activation email
+				await accountActivation({
+					to: email,
+					name: user.name || 'unknown user',
+					activationHref: `${process.env.CLIENT_URL}/account/activate/${token}`,
+					resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
+				});
+			} catch (err) {
+				return new HttpError(serverErrorMsg, 500);
+			}
+		}
+	} else {
+		return next(new HttpError(`User with that email doesn't exists`, 404));
+	}
 };
 
 const signinController = async (req, res, next) => {
@@ -232,5 +287,6 @@ exports.signinController = signinController;
 exports.signinGoogleController = signinGoogleController;
 exports.signinFacebookController = signinFacebookController;
 exports.activateController = activateController;
+exports.sendActivationEmailController = sendActivationEmailController;
 exports.forgotPasswordController = forgotPasswordController;
 exports.resetPasswordController = resetPasswordController;

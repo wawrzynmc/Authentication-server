@@ -3,7 +3,7 @@ const express = require('express');
 
 // my own imports
 const accountControllers = require('../controllers/account-controllers');
-const validators = require('../helpers/body-validators')
+const validators = require('../helpers/body-validators');
 
 // --------
 const router = express.Router();
@@ -14,7 +14,7 @@ const router = express.Router();
  * tags:
  *  name: Account
  *  description: Manage user account
-*/
+ */
 
 /**
  * * ---- DEFINITIONS
@@ -61,14 +61,12 @@ const router = express.Router();
  *     bearerAuth:
  *       type: http
  *       scheme: bearer
- *       bearerFormat: JWT    
-*/
-
-
+ *       bearerFormat: JWT
+ */
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/signup/:
  *    post:
  *      tags: [Account]
@@ -114,11 +112,15 @@ const router = express.Router();
  *         500:
  *           description: Internal server error
  */
-router.post('/signup', validators.signupValidator, accountControllers.signupController);
+router.post(
+	'/signup',
+	validators.signupValidator,
+	accountControllers.signupController
+);
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/activate/:
  *    post:
  *      tags: [Account]
@@ -134,8 +136,8 @@ router.post('/signup', validators.signupValidator, accountControllers.signupCont
 router.post('/activate', accountControllers.activateController);
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/send-activation-email/:
  *    post:
  *      tags: [Account]
@@ -148,11 +150,15 @@ router.post('/activate', accountControllers.activateController);
  *         500:
  *           description: Internal server error
  */
-router.post('/activate', accountControllers.activateController);
+router.post(
+    '/send-activation-email',
+    validators.emailValidator,
+	accountControllers.sendActivationEmailController
+);
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/signin/:
  *    post:
  *      tags: [Account]
@@ -164,15 +170,15 @@ router.post('/activate', accountControllers.activateController);
  *           description: Authentication failed
  *         500:
  *           description: Internal server error
- *      
+ *
  */
 router.post('/signin', accountControllers.signinController);
 router.post('/signin/google', accountControllers.signinGoogleController);
 router.post('/signin/facebook', accountControllers.signinFacebookController);
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/forgot-password/:
  *    post:
  *      tags: [Account]
@@ -184,13 +190,17 @@ router.post('/signin/facebook', accountControllers.signinFacebookController);
  *           description: Authentication failed
  *         500:
  *           description: Internal server error
- *      
+ *
  */
-router.put('/forgot-password', accountControllers.forgotPasswordController);
+router.put(
+	'/forgot-password',
+	validators.emailValidator,
+	accountControllers.forgotPasswordController
+);
 
 /**
- * @swagger 
- * path: 
+ * @swagger
+ * path:
  *  /api/account/reset-password/:
  *    post:
  *      tags: [Account]
@@ -202,14 +212,14 @@ router.put('/forgot-password', accountControllers.forgotPasswordController);
  *           description: Authentication failed
  *         500:
  *           description: Internal server error
- *      
+ *
  */
 router.put('/reset-password', accountControllers.resetPasswordController);
 
 // -- export
 module.exports = router;
 
- /**
+/**
  * @swagger
  * tags:
  *   name: Users

@@ -48,7 +48,7 @@ exports.signinValidator = [
 		.withMessage('password must contain a number'),
 ];
 
-exports.forgotPasswordValidator = [
+exports.emailValidator = [
 	check('email')
 		.not()
 		.isEmpty()
@@ -63,3 +63,4 @@ exports.resetPasswordValidator = [
 		.isLength({ min: 6 })
 		.withMessage('Password must be at least  6 characters long'),
 ];
+
