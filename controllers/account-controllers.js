@@ -111,7 +111,7 @@ const activateController = async (req, res, next) => {
 	} catch (err) {
 		return next(
 			new HttpError(
-				'Authentication failed. Please, try to activate your account once more.',
+				'Authentication failed. Probably link expired. Please, try to activate your account once more.',
 				401
 			)
 		);
@@ -243,10 +243,16 @@ const signinController = async (req, res, next) => {
 		return next(new HttpError(signinServerErrorMsg, 500));
 	}
 
-	// ! check if user is active
 
-	// * ---- check if user exists
-	if (!user) {
+	// * check if user is active
+	if (user) {
+		let userIsActive = user.isActive;
+		if (!userIsActive) {
+			return next(
+				new HttpError(`Your account is deacitvate.`, 401)
+			);
+		} 
+	} else {
 		return next(new HttpError(invalidCredentialsErrorMsg, 403));
 	}
 
@@ -287,7 +293,22 @@ const signinController = async (req, res, next) => {
 const signinGoogleController = async (req, res, next) => {};
 const signinFacebookController = async (req, res, next) => {};
 
-const forgotPasswordController = async (req, res, next) => {};
+const forgotPasswordController = async (req, res, next) => {
+	// * ---- body validation
+	const errors = validationResult(req);
+	if (!errors.isEmpty()) {
+		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
+		return next(
+			new HttpError(
+				firstErrorMsg ||
+					`Invalid inputs passed, please check your data.`,
+				422
+			)
+		);
+	}
+
+	const { email } = req.body;
+};
 const resetPasswordController = async (req, res, next) => {};
 
 exports.signupController = signupController;
