@@ -27,31 +27,27 @@ const signupController = async (req, res, next) => {
 
 	const serverErrorMsg = `Signing up failed - something went wrong during processing the request.`;
 	let { name, email, password1: password } = req.body;
-	let user, successMsg;
 
 	// * ---- check if user already exists
 	try {
-		// add isActive = true
-		existingUser = await User.findOne({ email: email });
+		user = await User.findOne({ email: email });
 	} catch (err) {
 		return next(new HttpError(serverErrorMsg, 500));
 	}
 
-	if (existingUser) {
-		let userIsActive = existingUser.isActive;
-
+	if (user) {
+		let userIsActive = user.isActive;
 		if (userIsActive) {
 			return next(
 				new HttpError(`User with that email already exists.`, 409)
 			);
 		} else {
-			user = existingUser;
-			name = user.name;
-			successMsg = `Dear ${name}, seems like you have already create account, but it is deactivated. We send you an activation email.`;
+			return next(
+				new HttpError(`Your account is inactive.`, 401)
+			);
 		}
 	} else {
 		// * ---- create user
-		successMsg = `Signup succeeded. Activation email has been sent to ${email}.`;
 		user = new User({
 			name,
 			email,
@@ -83,7 +79,7 @@ const signupController = async (req, res, next) => {
 		// * ---- send activation email
 		await accountActivation({
 			to: email,
-			name: name || 'unknown user',
+			name: name,
 			activationHref: `${process.env.CLIENT_URL}/account/activate/${token}`,
 			resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
 		});
@@ -93,7 +89,7 @@ const signupController = async (req, res, next) => {
 
 	res.status(201).json({
 		success: true,
-		message: successMsg,
+		message: `Signup succeeded. Activation email has been sent to ${email}.`,
 	});
 };
 
@@ -230,7 +226,7 @@ const signinController = async (req, res, next) => {
 		);
 	}
 
-	const signinServerErrorMsg = `Signin failed - something went wrong during processing the request.`;
+	const serverErrorMsg = `Signin failed - something went wrong during processing the request.`;
 	const invalidCredentialsErrorMsg =
 		'Invalid credentials - could not log in.';
 	const { email, password } = req.body;
@@ -240,16 +236,15 @@ const signinController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(signinServerErrorMsg, 500));
+		return next(new HttpError(serverErrorMsg, 500));
 	}
-
 
 	// * check if user is active
 	if (user) {
 		let userIsActive = user.isActive;
 		if (!userIsActive) {
 			return next(
-				new HttpError(`Your account is deacitvate.`, 401)
+				new HttpError(`Your account is inactive.`, 401)
 			);
 		} 
 	} else {
@@ -261,7 +256,7 @@ const signinController = async (req, res, next) => {
 	try {
 		authenticatedUser = await user.validPasswords(password);
 	} catch (err) {
-		return next(new HttpError(signinServerErrorMsg, 500));
+		return next(new HttpError(serverErrorMsg, 500));
 	}
 
 	if (!authenticatedUser) {
