@@ -1,6 +1,8 @@
 // -- libraries
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const fetch = require('node-fetch');
 
 // -- my own imports
 const HttpError = require('../helpers/http-error');
@@ -288,7 +290,92 @@ const signinController = async (req, res, next) => {
 		token,
 	});
 };
-const signinGoogleController = async (req, res, next) => {};
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT);
+const signinGoogleController = async (req, res, next) => {
+	const { idToken } = req.body;
+	const serverErrorMsg = `Authentication using Google failed. Please try again.`;
+
+	if (idToken) {
+		let response;
+
+		// get response data
+		try {
+			response = await client.verifyIdToken({
+				idToken,
+				audience: process.env.GOOGLE_CLIENT,
+			});
+		} catch (err) {
+			return next(new HttpError(serverErrorMsg, 500));
+		}
+
+		const { email_verified, name, email } = response.payload;
+
+		if (email_verified) {
+			let user;
+
+			try {
+				user = await User.findOne({ email: email });
+			} catch (err) {
+				return next(new HttpError(serverErrorMsg, 500));
+			}
+
+			if (user) {
+				const token = jwt.sign(
+					{
+						userId: user.id,
+						email: user.email,
+					},
+					process.env.JWT_SECRET,
+					{ expiresIn: '1h' }
+				);
+
+				res.json({
+					success: true,
+					message: 'Signin succeeded',
+					user: {
+						id: user.id,
+						name: user.name,
+						email: user.email,
+						role: user.role,
+					},
+					token,
+				});
+			} else {
+				let password = email + process.env.JWT_SECRET;
+				user = new User({
+					name,
+					email,
+					password,
+					isActive: true,
+				});
+				try {
+					await user.save();
+				} catch (err) {
+					return next(
+						new HttpError(serverErrorMsg,500)
+					);
+				}
+					const token = jwt.sign(
+						{ _id: data._id },
+						process.env.JWT_SECRET,
+						{ expiresIn: '7d' }
+					);
+					const { _id, email, name, role } = data;
+					return res.json({
+						token,
+						user: { _id, email, name, role },
+					});
+				});
+			}
+		} else {
+			return next(new HttpError(serverErrorMsg, 400));
+		}
+	} else {
+		return next(new HttpError(serverErrorMsg, 404));
+	}
+};
+
 const signinFacebookController = async (req, res, next) => {};
 
 const forgotPasswordController = async (req, res, next) => {
