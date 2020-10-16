@@ -29,6 +29,7 @@ const signupController = async (req, res, next) => {
 	let { name, email, password1: password } = req.body;
 
 	// * ---- check if user already exists
+	let user;
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
@@ -42,9 +43,7 @@ const signupController = async (req, res, next) => {
 				new HttpError(`User with that email already exists.`, 409)
 			);
 		} else {
-			return next(
-				new HttpError(`Your account is inactive.`, 401)
-			);
+			return next(new HttpError(`Your account is inactive.`, 401));
 		}
 	} else {
 		// * ---- create user
@@ -112,12 +111,13 @@ const activateController = async (req, res, next) => {
 			)
 		);
 	}
-	
+
 	// * ---- get data from token
 	const { userId, name, email } = decodedToken;
 
 	// * ---- find user
 	// -- check if user is already active
+	let user;
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
@@ -145,6 +145,10 @@ const activateController = async (req, res, next) => {
 	res.status(200).json({
 		success: true,
 		message: `Account user with email: ${email} has been activated`,
+		user: {
+			name,
+			email,
+		},
 	});
 };
 
@@ -167,6 +171,7 @@ const sendActivationEmailController = async (req, res, next) => {
 
 	// * ---- find user
 	// -- check if user is already active
+	let user;
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
@@ -230,9 +235,9 @@ const signinController = async (req, res, next) => {
 	const invalidCredentialsErrorMsg =
 		'Invalid credentials - could not log in.';
 	const { email, password } = req.body;
-	let user;
 
 	// * ---- get user
+	let user;
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
@@ -243,10 +248,8 @@ const signinController = async (req, res, next) => {
 	if (user) {
 		let userIsActive = user.isActive;
 		if (!userIsActive) {
-			return next(
-				new HttpError(`Your account is inactive.`, 401)
-			);
-		} 
+			return next(new HttpError(`Your account is inactive.`, 401));
+		}
 	} else {
 		return next(new HttpError(invalidCredentialsErrorMsg, 403));
 	}
@@ -266,8 +269,8 @@ const signinController = async (req, res, next) => {
 	// * ---- generate token
 	const token = jwt.sign(
 		{
-			userId: authenticatedUser.id,
-			email: authenticatedUser.email
+			userId: user.id,
+			email: user.email,
 		},
 		process.env.JWT_SECRET,
 		{ expiresIn: '1h' }
@@ -277,10 +280,10 @@ const signinController = async (req, res, next) => {
 		success: true,
 		message: 'Signin succeeded',
 		user: {
-			id: authenticatedUser.id,
-			name: authenticatedUser.name,
-			email :authenticatedUser.email,
-			role: authenticatedUser.role,
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			role: user.role,
 		},
 		token,
 	});
