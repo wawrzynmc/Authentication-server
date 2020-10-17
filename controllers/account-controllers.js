@@ -3,6 +3,7 @@ const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const fetch = require('node-fetch');
+const validator = require('validator');
 
 // -- my own imports
 const HttpError = require('../helpers/http-error');
@@ -296,6 +297,7 @@ const signinGoogleController = async (req, res, next) => {
 	const { idToken } = req.body;
 	const serverErrorMsg = `Authentication using Google failed. Please try again.`;
 
+	// check if idToken exists in body
 	if (idToken) {
 		let response;
 
@@ -306,42 +308,30 @@ const signinGoogleController = async (req, res, next) => {
 				audience: process.env.GOOGLE_CLIENT,
 			});
 		} catch (err) {
+			console.log('first 500');
+			console.log(err);
 			return next(new HttpError(serverErrorMsg, 500));
 		}
 
-		const { email_verified, name, email } = response.payload;
+		let { email_verified, name, email } = response.payload;
 
+		// normalize email
+		email = validator.normalizeEmail(email);
+
+		// if users email is verified
 		if (email_verified) {
 			let user;
 
 			try {
 				user = await User.findOne({ email: email });
 			} catch (err) {
+				console.log('second 500');
+				console.log(err);
 				return next(new HttpError(serverErrorMsg, 500));
 			}
 
-			if (user) {
-				const token = jwt.sign(
-					{
-						userId: user.id,
-						email: user.email,
-					},
-					process.env.JWT_SECRET,
-					{ expiresIn: '1h' }
-				);
-
-				res.json({
-					success: true,
-					message: 'Signin succeeded',
-					user: {
-						id: user.id,
-						name: user.name,
-						email: user.email,
-						role: user.role,
-					},
-					token,
-				});
-			} else {
+			// if user doesn't exists create one
+			if (!user) {
 				let password = email + process.env.JWT_SECRET;
 				user = new User({
 					name,
@@ -349,25 +339,35 @@ const signinGoogleController = async (req, res, next) => {
 					password,
 					isActive: true,
 				});
+
 				try {
 					await user.save();
 				} catch (err) {
-					return next(
-						new HttpError(serverErrorMsg,500)
-					);
+					return next(new HttpError(serverErrorMsg, 500));
 				}
-					const token = jwt.sign(
-						{ _id: data._id },
-						process.env.JWT_SECRET,
-						{ expiresIn: '7d' }
-					);
-					const { _id, email, name, role } = data;
-					return res.json({
-						token,
-						user: { _id, email, name, role },
-					});
-				});
 			}
+
+			// * ---- generate token to signin
+			const token = jwt.sign(
+				{
+					userId: user.id,
+					email: user.email,
+				},
+				process.env.JWT_SECRET,
+				{ expiresIn: '1h' }
+			);
+
+			res.json({
+				success: true,
+				message: 'Signin succeeded',
+				user: {
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					role: user.role,
+				},
+				token,
+			});
 		} else {
 			return next(new HttpError(serverErrorMsg, 400));
 		}
