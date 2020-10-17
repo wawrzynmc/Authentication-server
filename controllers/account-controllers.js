@@ -308,8 +308,6 @@ const signinGoogleController = async (req, res, next) => {
 				audience: process.env.GOOGLE_CLIENT,
 			});
 		} catch (err) {
-			console.log('first 500');
-			console.log(err);
 			return next(new HttpError(serverErrorMsg, 500));
 		}
 
@@ -325,8 +323,6 @@ const signinGoogleController = async (req, res, next) => {
 			try {
 				user = await User.findOne({ email: email });
 			} catch (err) {
-				console.log('second 500');
-				console.log(err);
 				return next(new HttpError(serverErrorMsg, 500));
 			}
 
@@ -376,7 +372,79 @@ const signinGoogleController = async (req, res, next) => {
 	}
 };
 
-const signinFacebookController = async (req, res, next) => {};
+const signinFacebookController = async (req, res, next) => {
+	const { userID, accessToken } = req.body;
+	const url = `https://graph.facebook.com/v2.11/${userID}/?fields=id,name,email&access_token=${accessToken}`;
+	const serverErrorMsg = `Authentication using Facebook failed. Please try again.`;
+	let response;
+
+	try {
+		response = await fetch(url, { method: 'GET' });
+	} catch (err) {
+		return next(new HttpError(serverErrorMsg, 500));
+	}
+
+	response = await response.json();
+	let { email, name } = response;
+
+	// normalize email
+	email = validator.normalizeEmail(email);
+
+	if (response) {
+		let user;
+
+		try {
+			user = await User.findOne({ email: email });
+		} catch (err) {
+			console.log('second error');
+			console.log(err);
+			return next(new HttpError(serverErrorMsg, 500));
+		}
+
+		if (!user) {
+			let password = email + process.env.JWT_SECRET;
+			user = new User({
+				name,
+				email,
+				password,
+				isActive: true,
+			});
+
+			try {
+				await user.save();
+			} catch (err) {
+				console.log('third error');
+				return next(new HttpError(serverErrorMsg, 500));
+			}
+		}
+
+		// * ---- generate token to signin
+		const token = jwt.sign(
+			{
+				userId: user.id,
+				email: user.email,
+			},
+			process.env.JWT_SECRET,
+			{ expiresIn: '1h' }
+		);
+
+		res.json({
+			success: true,
+			message: 'Signin succeeded',
+			user: {
+				id: user.id,
+				name: user.name,
+				email: user.email,
+				role: user.role,
+			},
+			token,
+		});
+	} else {
+		console.log('else');
+
+		return next(new HttpError(serverErrorMsg, 500));
+	}
+};
 
 const forgotPasswordController = async (req, res, next) => {
 	// * ---- body validation
