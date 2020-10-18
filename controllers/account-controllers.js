@@ -1,5 +1,6 @@
 // -- libraries
 const { validationResult } = require('express-validator');
+const _ = require('lodash');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const fetch = require('node-fetch');
@@ -399,8 +400,6 @@ const signinFacebookController = async (req, res, next) => {
 		try {
 			user = await User.findOne({ email: email });
 		} catch (err) {
-			console.log('second error');
-			console.log(err);
 			return next(new HttpError(serverErrorMsg, 500));
 		}
 
@@ -443,8 +442,6 @@ const signinFacebookController = async (req, res, next) => {
 			token,
 		});
 	} else {
-		console.log('else');
-
 		return next(new HttpError(serverErrorMsg, 500));
 	}
 };
@@ -499,7 +496,6 @@ const forgotPasswordController = async (req, res, next) => {
 	}
 
 	// * ---- send reset password email
-	console.log(email)
 	try {
 		await resetPassword({
 			to: email,
@@ -529,17 +525,11 @@ const resetPasswordController = async (req, res, next) => {
 		);
 	}
 
-	const { resetPasswordLink, password } = req.body;
-	const serverErrorMsg = `Password reset failed - something went wrong during processing the request.`;
+	const { token, password } = req.body;
 
 	// * ---- check token
-	let decodedToken;
-
 	try {
-		decodedToken = jwt.verify(
-			resetPasswordLink,
-			process.env.JWT_RESET_PASSWORD
-		);
+		jwt.verify(token, process.env.JWT_SECRET_RESET_PASSWORD);
 	} catch (err) {
 		return next(
 			new HttpError(
@@ -552,7 +542,7 @@ const resetPasswordController = async (req, res, next) => {
 	// * ---- find user
 	let user;
 	try {
-		user = await User.findOne({ resetPasswordLink: resetPasswordLink });
+		user = await User.findOne({ resetPasswordLink: token });
 	} catch (err) {
 		const error = dbErrorHandler(err, 500);
 		return next(error);

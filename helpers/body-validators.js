@@ -47,8 +47,6 @@ exports.signinValidator = [
 			min: 6,
 		})
 		.withMessage('Password must contain at least 6 characters')
-		.matches(/\d/)
-		.withMessage('password must contain a number'),
 ];
 
 exports.emailValidator = [
@@ -62,6 +60,7 @@ exports.resetPasswordValidator = [
 	check('password')
 		.not()
 		.isEmpty()
+		.withMessage('Password can not be empty')
 		.isLength({ min: 6 })
 		.withMessage('Password must be at least  6 characters long'),
 ];
