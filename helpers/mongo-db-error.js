@@ -30,7 +30,7 @@ const uniqueMessage = error => {
     Get the error message from error object
 */
 
-exports.errorHandler = (error, statusCode = 500) => {
+exports.dbErrorHandler = (error, statusCode = 500) => {
     let message = ""
     if (error.code) {
         switch (error.code) {
@@ -39,7 +39,7 @@ exports.errorHandler = (error, statusCode = 500) => {
                 message = uniqueMessage(error)
                 break;
             default:
-                message: "Something went wrong during processing request. Please try again."
+                message: "Something went wrong during processing the request. Please try again."
         }
     } else {
         for (let errorName in error.errors) {

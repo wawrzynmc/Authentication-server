@@ -59,7 +59,7 @@ exports.emailValidator = [
 ];
 
 exports.resetPasswordValidator = [
-	check('newPassword')
+	check('password')
 		.not()
 		.isEmpty()
 		.isLength({ min: 6 })

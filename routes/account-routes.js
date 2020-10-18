@@ -218,7 +218,11 @@ router.put(
  *           description: Internal server error
  *
  */
-router.put('/reset-password', accountControllers.resetPasswordController);
+router.put(
+	'/reset-password',
+	validators.resetPasswordValidator,
+	accountControllers.resetPasswordController
+);
 
 // -- export
 module.exports = router;

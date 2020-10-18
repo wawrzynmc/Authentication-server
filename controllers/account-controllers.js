@@ -6,9 +6,13 @@ const fetch = require('node-fetch');
 const validator = require('validator');
 
 // -- my own imports
+const { dbErrorHandler } = require('../helpers/mongo-db-error');
 const HttpError = require('../helpers/http-error');
 const { decrypt, encrypt } = require('../helpers/encrypt-data');
-const { accountActivation } = require('../helpers/mailers/appMailer');
+const {
+	accountActivation,
+	resetPassword,
+} = require('../helpers/mailers/appMailer');
 
 // -- models
 const User = require('../models/user-model');
@@ -58,12 +62,8 @@ const signupController = async (req, res, next) => {
 		try {
 			await user.save();
 		} catch (err) {
-			return next(
-				new HttpError(
-					`Signup failed - something went wrong during processing the request.`,
-					500
-				)
-			);
+			const error = dbErrorHandler(err, 500);
+			return next(error);
 		}
 	}
 
@@ -109,7 +109,7 @@ const activateController = async (req, res, next) => {
 	} catch (err) {
 		return next(
 			new HttpError(
-				'Authentication failed. Probably link expired. Please, try to activate your account once more.',
+				'Authentication failed. Link probably expired. Please, try to activate your account once more.',
 				401
 			)
 		);
@@ -138,7 +138,8 @@ const activateController = async (req, res, next) => {
 				user.isActive = true;
 				await user.save();
 			} catch (err) {
-				return next(new HttpError(serverErrorMsg, 500));
+				const error = dbErrorHandler(err, 500);
+				return next(error);
 			}
 		}
 	} else {
@@ -188,17 +189,17 @@ const sendActivationEmailController = async (req, res, next) => {
 				new HttpError('Your account has been already activated', 403)
 			);
 		} else {
+			// * ---- generate token to activate account
+			let token = jwt.sign(
+				{
+					userId: user.id,
+					name: user.name,
+					email,
+				},
+				process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
+				{ expiresIn: '15m' }
+			);
 			try {
-				// * ---- generate token to activate account
-				let token = jwt.sign(
-					{
-						userId: user.id,
-						name: user.name,
-						email,
-					},
-					process.env.JWT_SECRET_ACCOUNT_ACTIVATION,
-					{ expiresIn: '15m' }
-				);
 				// * ---- send activation email
 				await accountActivation({
 					to: email,
@@ -262,7 +263,8 @@ const signinController = async (req, res, next) => {
 	try {
 		authenticatedUser = await user.validPasswords(password);
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		const error = dbErrorHandler(err, 500);
+		return next(error);
 	}
 
 	if (!authenticatedUser) {
@@ -339,7 +341,8 @@ const signinGoogleController = async (req, res, next) => {
 				try {
 					await user.save();
 				} catch (err) {
-					return next(new HttpError(serverErrorMsg, 500));
+					const error = dbErrorHandler(err, 500);
+					return next(error);
 				}
 			}
 
@@ -413,8 +416,8 @@ const signinFacebookController = async (req, res, next) => {
 			try {
 				await user.save();
 			} catch (err) {
-				console.log('third error');
-				return next(new HttpError(serverErrorMsg, 500));
+				const error = dbErrorHandler(err, 500);
+				return next(error);
 			}
 		}
 
@@ -460,9 +463,120 @@ const forgotPasswordController = async (req, res, next) => {
 		);
 	}
 
+	const serverErrorMsg = `Password reset failed - something went wrong during processing the request.`;
 	const { email } = req.body;
+
+	// * ---- get user
+	let user;
+	try {
+		user = await User.findOne({ email: email, isActive: true });
+	} catch (err) {
+		return next(new HttpError(serverErrorMsg, 500));
+	}
+
+	if (!user) {
+		return next(new HttpError(`User with that email doesn't exists.`, 403));
+	}
+
+	// * ---- generate token
+	const token = jwt.sign(
+		{
+			userId: user.id,
+			email: user.email,
+		},
+		process.env.JWT_SECRET_RESET_PASSWORD,
+		{ expiresIn: '1h' }
+	);
+
+	// * ---- update resetPasswordLink of user
+	try {
+		await user.updateOne({
+			resetPasswordLink: token,
+		});
+	} catch (err) {
+		const error = dbErrorHandler(err, 500);
+		return next(error);
+	}
+
+	// * ---- send reset password email
+	console.log(email)
+	try {
+		await resetPassword({
+			to: email,
+			name: user.name || 'unknown user',
+			resetPasswordHref: `${process.env.CLIENT_URL}/account/reset-password/${token}`,
+		});
+	} catch (err) {
+		return new HttpError(serverErrorMsg, 500);
+	}
+
+	res.status(200).json({
+		success: true,
+		message: `Reset password email has been sent to ${email}.`,
+	});
 };
-const resetPasswordController = async (req, res, next) => {};
+const resetPasswordController = async (req, res, next) => {
+	// * ---- body validation
+	const errors = validationResult(req);
+	if (!errors.isEmpty()) {
+		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
+		return next(
+			new HttpError(
+				firstErrorMsg ||
+					`Invalid inputs passed, please check your data.`,
+				422
+			)
+		);
+	}
+
+	const { resetPasswordLink, password } = req.body;
+	const serverErrorMsg = `Password reset failed - something went wrong during processing the request.`;
+
+	// * ---- check token
+	let decodedToken;
+
+	try {
+		decodedToken = jwt.verify(
+			resetPasswordLink,
+			process.env.JWT_RESET_PASSWORD
+		);
+	} catch (err) {
+		return next(
+			new HttpError(
+				'Reset password failed. Link probably expired. Please, try to activate your account once more.',
+				401
+			)
+		);
+	}
+
+	// * ---- find user
+	let user;
+	try {
+		user = await User.findOne({ resetPasswordLink: resetPasswordLink });
+	} catch (err) {
+		const error = dbErrorHandler(err, 500);
+		return next(error);
+	}
+
+	// * ---- update user
+	const updatedFields = {
+		password,
+		resetPasswordLink: '',
+	};
+	user = _.extend(user, updatedFields);
+
+	try {
+		await user.save();
+	} catch (err) {
+		const error = dbErrorHandler(err, 500);
+		return next(error);
+	}
+
+	res.status(200).json({
+		success: true,
+		message: `Password has been changed successfully`,
+	});
+};
 
 exports.signupController = signupController;
 exports.signinController = signinController;
