@@ -22,7 +22,7 @@ const app = express();
 // -- swagger configuration
 const swaggerOptions = {
 	swaggerDefinition: {
-		openapi: "3.0.0",
+		openapi: '3.0.0',
 		components: {},
 		info: {
 			version: '1.0.0',
@@ -34,7 +34,7 @@ const swaggerOptions = {
 			servers: [
 				{
 					url: 'http://localhost:5000',
-					description: 'Development server'
+					description: 'Development server',
 				},
 			],
 		},
@@ -76,7 +76,13 @@ app.use((error, req, res, next) => {
 	const status = error.code || 500;
 	const message = error.message || 'An unknown error occured';
 	const data = error.data;
-	res.status(status).json({ success: false, message: message, data: data, status: status });
+	console.log(error.message);
+	res.status(status).json({
+		success: false,
+		message: message,
+		data: data,
+		status: status,
+	});
 });
 
 // -- connect to Database

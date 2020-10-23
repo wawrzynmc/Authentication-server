@@ -48,7 +48,7 @@ const signupController = async (req, res, next) => {
 		let userIsActive = user.isActive;
 		if (userIsActive) {
 			return next(
-				new HttpError(`User with that email already exists.`, 409)
+				new HttpError(`SIGNUP_USER_EXISTS`, 409)
 			);
 		} else {
 			return next(new HttpError(`Your account is inactive.`, 401));
