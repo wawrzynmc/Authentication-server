@@ -10,6 +10,7 @@ const swaggerUi = require('swagger-ui-express');
 const accountRoutes = require('./routes/account-routes');
 const HttpError = require('./helpers/http-error');
 const connectMongoo = require('./config/connect-mongo');
+const { SERVER_ERROR } = require('./helpers/error-codes');
 
 // -- config .env to ./config/config.env
 require('dotenv').config({
@@ -73,10 +74,9 @@ app.use((req, res, next) => {
 
 // -- ERROR MIDDLEWARE
 app.use((error, req, res, next) => {
-	const status = error.code || 500;
-	const message = error.message || 'An unknown error occured';
+	const status = error.code || SERVER_ERROR.statusCode;
+	const message = error.message || SERVER_ERROR.value;
 	const data = error.data;
-	console.log(error.message);
 	res.status(status).json({
 		success: false,
 		message: message,

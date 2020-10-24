@@ -76,7 +76,12 @@ const signupController = async (req, res, next) => {
 				)
 			);
 		} else {
-			return next(new HttpError(USER_INACTIVE_ERROR.value, USER_INACTIVE_ERROR.statusCode));
+			return next(
+				new HttpError(
+					USER_INACTIVE_ERROR.value,
+					USER_INACTIVE_ERROR.statusCode
+				)
+			);
 		}
 	} else {
 		// * ---- create user
@@ -170,7 +175,12 @@ const activateController = async (req, res, next) => {
 			}
 		}
 	} else {
-		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
+		return next(
+			new HttpError(
+				USER_DOESNT_EXIST_ERROR.value,
+				USER_DOESNT_EXIST_ERROR.statusCode
+			)
+		);
 	}
 
 	res.status(200).json({
@@ -243,7 +253,12 @@ const sendActivationEmailController = async (req, res, next) => {
 			}
 		}
 	} else {
-		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
+		return next(
+			new HttpError(
+				USER_DOESNT_EXIST_ERROR.value,
+				USER_DOESNT_EXIST_ERROR.statusCode
+			)
+		);
 	}
 
 	res.status(200).json({
@@ -279,7 +294,12 @@ const signinController = async (req, res, next) => {
 	if (user) {
 		let userIsActive = user.isActive;
 		if (!userIsActive) {
-			return next(new HttpError(USER_INACTIVE_ERROR.value, USER_INACTIVE_ERROR.statusCode));
+			return next(
+				new HttpError(
+					USER_INACTIVE_ERROR.value,
+					USER_INACTIVE_ERROR.statusCode
+				)
+			);
 		}
 	} else {
 		return next(
@@ -408,7 +428,9 @@ const signinGoogleController = async (req, res, next) => {
 				token,
 			});
 		} else {
-			return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
+			return next(
+				new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode)
+			);
 		}
 	} else {
 		return next(
@@ -515,7 +537,12 @@ const forgotPasswordController = async (req, res, next) => {
 	}
 
 	if (!user) {
-		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
+		return next(
+			new HttpError(
+				USER_DOESNT_EXIST_ERROR.value,
+				USER_DOESNT_EXIST_ERROR.statusCode
+			)
+		);
 	}
 
 	// * ---- generate token
@@ -590,6 +617,15 @@ const resetPasswordController = async (req, res, next) => {
 		return next(error);
 	}
 
+	if (!user) {
+		return next(
+			new HttpError(
+				EXPIRED_TOKEN_ERROR.value,
+				EXPIRED_TOKEN_ERROR.statusCode
+			)
+		);
+	}
+	
 	// * ---- update user
 	const updatedFields = {
 		password,
