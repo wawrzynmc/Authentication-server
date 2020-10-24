@@ -14,6 +14,24 @@ const {
 	accountActivation,
 	resetPassword,
 } = require('../helpers/mailers/appMailer');
+const {
+	INVALID_INPUT_DATA_ERROR,
+	USER_ALREADY_EXISTS_ERROR,
+	SERVER_ERROR,
+	USER_INACTIVE_ERROR,
+	EXPIRED_TOKEN_ERROR,
+	USER_ALREADY_ACTIVATED_ERROR,
+	USER_DOESNT_EXIST_ERROR,
+	INVALID_CREDENTIALS_ERROR,
+} = require('../helpers/error-codes');
+const {
+	SIGNUP_SUCCESS,
+	SIGNIN_SUCCESS,
+	ACTIVATION_SUCCESS,
+	SEND_ACTIVATION_EMAIL_SUCCESS,
+	SEND_RESET_PWD_EMAIL_SUCCESS,
+	PWD_CHANGED_SUCCESS,
+} = require('../helpers/success-codes');
 
 // -- models
 const User = require('../models/user-model');
@@ -29,11 +47,15 @@ const signupController = async (req, res, next) => {
 	const errors = validationResult(req);
 	if (!errors.isEmpty()) {
 		const firstErrorMsg = errors.array({ onlyFirstError: true })[0].msg;
-		const optionalMsg = 'Invalid inputs passed. Please, check your data.';
-		return next(new HttpError(firstErrorMsg || optionalMsg, 422));
+
+		return next(
+			new HttpError(
+				firstErrorMsg || INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
+			)
+		);
 	}
 
-	const serverErrorMsg = `Signing up failed - something went wrong during processing the request.`;
 	let { name, email, password1: password } = req.body;
 
 	// * ---- check if user already exists
@@ -41,17 +63,20 @@ const signupController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	if (user) {
 		let userIsActive = user.isActive;
 		if (userIsActive) {
 			return next(
-				new HttpError(`SIGNUP_USER_EXISTS`, 409)
+				new HttpError(
+					USER_ALREADY_EXISTS_ERROR.value,
+					USER_ALREADY_EXISTS_ERROR.statusCode
+				)
 			);
 		} else {
-			return next(new HttpError(`Your account is inactive.`, 401));
+			return next(new HttpError(USER_INACTIVE_ERROR.value, USER_INACTIVE_ERROR.statusCode));
 		}
 	} else {
 		// * ---- create user
@@ -63,7 +88,7 @@ const signupController = async (req, res, next) => {
 		try {
 			await user.save();
 		} catch (err) {
-			const error = dbErrorHandler(err, 500);
+			const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 			return next(error);
 		}
 	}
@@ -87,19 +112,17 @@ const signupController = async (req, res, next) => {
 			resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
 		});
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	res.status(201).json({
 		success: true,
-		message: `Signup succeeded. Activation email has been sent to ${email}.`,
+		message: SIGNUP_SUCCESS,
 	});
 };
 
 const activateController = async (req, res, next) => {
 	let decodedToken;
-	const serverErrorMsg = `Activation failed - something went wrong during processing the request.`;
-
 	// * ---- check token
 	try {
 		const { token } = req.body;
@@ -110,8 +133,8 @@ const activateController = async (req, res, next) => {
 	} catch (err) {
 		return next(
 			new HttpError(
-				'Authentication failed. Link probably expired. Please, try to activate your account once more.',
-				401
+				EXPIRED_TOKEN_ERROR.value,
+				EXPIRED_TOKEN_ERROR.statusCode
 			)
 		);
 	}
@@ -125,31 +148,34 @@ const activateController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	// * ---- activate account
 	if (user) {
 		if (user.isActive) {
 			return next(
-				new HttpError('Your account has been already activated', 403)
+				new HttpError(
+					USER_ALREADY_ACTIVATED_ERROR.value,
+					USER_ALREADY_ACTIVATED_ERROR.statusCode
+				)
 			);
 		} else {
 			try {
 				user.isActive = true;
 				await user.save();
 			} catch (err) {
-				const error = dbErrorHandler(err, 500);
+				const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 				return next(error);
 			}
 		}
 	} else {
-		return next(new HttpError(`User with that email doesn't exists`, 404));
+		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
 	}
 
 	res.status(200).json({
 		success: true,
-		message: `Account user with email: ${email} has been activated`,
+		message: ACTIVATION_SUCCESS,
 		user: {
 			name,
 			email,
@@ -164,14 +190,12 @@ const sendActivationEmailController = async (req, res, next) => {
 		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
 		return next(
 			new HttpError(
-				firstErrorMsg ||
-					`Invalid inputs passed, please check your data.`,
-				422
+				firstErrorMsg || INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
 			)
 		);
 	}
 
-	const serverErrorMsg = `Can not send email - something went wrong during processing the request.`;
 	const { email } = req.body;
 
 	// * ---- find user
@@ -180,14 +204,17 @@ const sendActivationEmailController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	// * ---- activate account
 	if (user) {
 		if (user.isActive) {
 			return next(
-				new HttpError('Your account has been already activated', 403)
+				new HttpError(
+					USER_ALREADY_ACTIVATED_ERROR.value,
+					USER_ALREADY_ACTIVATED_ERROR.statusCode
+				)
 			);
 		} else {
 			// * ---- generate token to activate account
@@ -209,16 +236,19 @@ const sendActivationEmailController = async (req, res, next) => {
 					resetPasswordHref: `${process.env.CLIENT_URL}/account/forgot-password`,
 				});
 			} catch (err) {
-				return new HttpError(serverErrorMsg, 500);
+				return new HttpError(
+					SERVER_ERROR.value,
+					SERVER_ERROR.statusCode
+				);
 			}
 		}
 	} else {
-		return next(new HttpError(`User with that email doesn't exists`, 404));
+		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
 	}
 
 	res.status(200).json({
 		success: true,
-		message: `Activation email has been sent to ${email}.`,
+		message: SEND_ACTIVATION_EMAIL_SUCCESS,
 	});
 };
 
@@ -229,16 +259,12 @@ const signinController = async (req, res, next) => {
 		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
 		return next(
 			new HttpError(
-				firstErrorMsg ||
-					`Invalid inputs passed, please check your data.`,
-				422
+				firstErrorMsg || INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
 			)
 		);
 	}
 
-	const serverErrorMsg = `Signin failed - something went wrong during processing the request.`;
-	const invalidCredentialsErrorMsg =
-		'Invalid credentials - could not log in.';
 	const { email, password } = req.body;
 
 	// * ---- get user
@@ -246,17 +272,22 @@ const signinController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	// * check if user is active
 	if (user) {
 		let userIsActive = user.isActive;
 		if (!userIsActive) {
-			return next(new HttpError(`Your account is inactive.`, 401));
+			return next(new HttpError(USER_INACTIVE_ERROR.value, USER_INACTIVE_ERROR.statusCode));
 		}
 	} else {
-		return next(new HttpError(invalidCredentialsErrorMsg, 403));
+		return next(
+			new HttpError(
+				INVALID_CREDENTIALS_ERROR.value,
+				INVALID_CREDENTIALS_ERROR.statusCode
+			)
+		);
 	}
 
 	// * ---- authenticate user
@@ -264,12 +295,17 @@ const signinController = async (req, res, next) => {
 	try {
 		authenticatedUser = await user.validPasswords(password);
 	} catch (err) {
-		const error = dbErrorHandler(err, 500);
+		const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 		return next(error);
 	}
 
 	if (!authenticatedUser) {
-		return next(new HttpError(invalidCredentialsErrorMsg, 403));
+		return next(
+			new HttpError(
+				INVALID_CREDENTIALS_ERROR.value,
+				INVALID_CREDENTIALS_ERROR.statusCode
+			)
+		);
 	}
 
 	// * ---- generate token
@@ -284,7 +320,7 @@ const signinController = async (req, res, next) => {
 
 	res.json({
 		success: true,
-		message: 'Signin succeeded',
+		message: SIGNIN_SUCCESS,
 		user: {
 			id: user.id,
 			name: user.name,
@@ -298,7 +334,6 @@ const signinController = async (req, res, next) => {
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT);
 const signinGoogleController = async (req, res, next) => {
 	const { idToken } = req.body;
-	const serverErrorMsg = `Authentication using Google failed. Please try again.`;
 
 	// check if idToken exists in body
 	if (idToken) {
@@ -311,7 +346,9 @@ const signinGoogleController = async (req, res, next) => {
 				audience: process.env.GOOGLE_CLIENT,
 			});
 		} catch (err) {
-			return next(new HttpError(serverErrorMsg, 500));
+			return next(
+				new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode)
+			);
 		}
 
 		let { email_verified, name, email } = response.payload;
@@ -326,7 +363,9 @@ const signinGoogleController = async (req, res, next) => {
 			try {
 				user = await User.findOne({ email: email });
 			} catch (err) {
-				return next(new HttpError(serverErrorMsg, 500));
+				return next(
+					new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode)
+				);
 			}
 
 			// if user doesn't exists create one
@@ -342,7 +381,7 @@ const signinGoogleController = async (req, res, next) => {
 				try {
 					await user.save();
 				} catch (err) {
-					const error = dbErrorHandler(err, 500);
+					const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 					return next(error);
 				}
 			}
@@ -359,7 +398,7 @@ const signinGoogleController = async (req, res, next) => {
 
 			res.json({
 				success: true,
-				message: 'Signin succeeded',
+				message: SIGNIN_SUCCESS,
 				user: {
 					id: user.id,
 					name: user.name,
@@ -369,23 +408,27 @@ const signinGoogleController = async (req, res, next) => {
 				token,
 			});
 		} else {
-			return next(new HttpError(serverErrorMsg, 400));
+			return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 		}
 	} else {
-		return next(new HttpError(serverErrorMsg, 404));
+		return next(
+			new HttpError(
+				INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
+			)
+		);
 	}
 };
 
 const signinFacebookController = async (req, res, next) => {
 	const { userID, accessToken } = req.body;
 	const url = `https://graph.facebook.com/v2.11/${userID}/?fields=id,name,email&access_token=${accessToken}`;
-	const serverErrorMsg = `Authentication using Facebook failed. Please try again.`;
 	let response;
 
 	try {
 		response = await fetch(url, { method: 'GET' });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	response = await response.json();
@@ -400,7 +443,9 @@ const signinFacebookController = async (req, res, next) => {
 		try {
 			user = await User.findOne({ email: email });
 		} catch (err) {
-			return next(new HttpError(serverErrorMsg, 500));
+			return next(
+				new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode)
+			);
 		}
 
 		if (!user) {
@@ -415,7 +460,7 @@ const signinFacebookController = async (req, res, next) => {
 			try {
 				await user.save();
 			} catch (err) {
-				const error = dbErrorHandler(err, 500);
+				const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 				return next(error);
 			}
 		}
@@ -432,7 +477,7 @@ const signinFacebookController = async (req, res, next) => {
 
 		res.json({
 			success: true,
-			message: 'Signin succeeded',
+			message: SIGNIN_SUCCESS,
 			user: {
 				id: user.id,
 				name: user.name,
@@ -442,7 +487,7 @@ const signinFacebookController = async (req, res, next) => {
 			token,
 		});
 	} else {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 };
 
@@ -453,14 +498,12 @@ const forgotPasswordController = async (req, res, next) => {
 		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
 		return next(
 			new HttpError(
-				firstErrorMsg ||
-					`Invalid inputs passed, please check your data.`,
-				422
+				firstErrorMsg || INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
 			)
 		);
 	}
 
-	const serverErrorMsg = `Password reset failed - something went wrong during processing the request.`;
 	const { email } = req.body;
 
 	// * ---- get user
@@ -468,11 +511,11 @@ const forgotPasswordController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ email: email, isActive: true });
 	} catch (err) {
-		return next(new HttpError(serverErrorMsg, 500));
+		return next(new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode));
 	}
 
 	if (!user) {
-		return next(new HttpError(`User with that email doesn't exists.`, 403));
+		return next(new HttpError(USER_DOESNT_EXIST_ERROR.value, USER_DOESNT_EXIST_ERROR.statusCode));
 	}
 
 	// * ---- generate token
@@ -491,7 +534,7 @@ const forgotPasswordController = async (req, res, next) => {
 			resetPasswordLink: token,
 		});
 	} catch (err) {
-		const error = dbErrorHandler(err, 500);
+		const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 		return next(error);
 	}
 
@@ -503,12 +546,12 @@ const forgotPasswordController = async (req, res, next) => {
 			resetPasswordHref: `${process.env.CLIENT_URL}/account/reset-password/${token}`,
 		});
 	} catch (err) {
-		return new HttpError(serverErrorMsg, 500);
+		return new HttpError(SERVER_ERROR.value, SERVER_ERROR.statusCode);
 	}
 
 	res.status(200).json({
 		success: true,
-		message: `Reset password email has been sent to ${email}.`,
+		message: SEND_RESET_PWD_EMAIL_SUCCESS,
 	});
 };
 const resetPasswordController = async (req, res, next) => {
@@ -518,9 +561,8 @@ const resetPasswordController = async (req, res, next) => {
 		const firstErrorMsg = errors.array().map((error) => error.msg)[0];
 		return next(
 			new HttpError(
-				firstErrorMsg ||
-					`Invalid inputs passed, please check your data.`,
-				422
+				firstErrorMsg || INVALID_INPUT_DATA_ERROR.value,
+				INVALID_INPUT_DATA_ERROR.statusCode
 			)
 		);
 	}
@@ -533,8 +575,8 @@ const resetPasswordController = async (req, res, next) => {
 	} catch (err) {
 		return next(
 			new HttpError(
-				'Reset password failed. Link probably expired. Please, try to activate your account once more.',
-				401
+				EXPIRED_TOKEN_ERROR.value,
+				EXPIRED_TOKEN_ERROR.statusCode
 			)
 		);
 	}
@@ -544,7 +586,7 @@ const resetPasswordController = async (req, res, next) => {
 	try {
 		user = await User.findOne({ resetPasswordLink: token });
 	} catch (err) {
-		const error = dbErrorHandler(err, 500);
+		const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 		return next(error);
 	}
 
@@ -558,13 +600,13 @@ const resetPasswordController = async (req, res, next) => {
 	try {
 		await user.save();
 	} catch (err) {
-		const error = dbErrorHandler(err, 500);
+		const error = dbErrorHandler(err, SERVER_ERROR.statusCode);
 		return next(error);
 	}
 
 	res.status(200).json({
 		success: true,
-		message: `Password has been changed successfully`,
+		message: PWD_CHANGED_SUCCESS,
 	});
 };
 

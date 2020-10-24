@@ -7,6 +7,7 @@
 */
 
 const HttpError = require('./http-error')
+const {SERVER_ERROR} = require('./error-codes')
 
 const uniqueMessage = error => {
     let output;
@@ -39,7 +40,7 @@ exports.dbErrorHandler = (error, statusCode = 500) => {
                 message = uniqueMessage(error)
                 break;
             default:
-                message: "Something went wrong during processing the request. Please try again."
+                message: SERVER_ERROR
         }
     } else {
         for (let errorName in error.errors) {
