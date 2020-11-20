@@ -89,6 +89,6 @@ app.use((error, req, res, next) => {
 connectMongoo();
 
 // start app
-app.listen(process.env.PORT, () =>
+app.listen(process.env.PORT || 5000, () =>
 	console.log(`Server run on port ${process.env.PORT}`)
 );
