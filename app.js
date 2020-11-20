@@ -47,17 +47,17 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 
 // -- config for development
 if (process.env.NODE_ENV === 'development') {
-	// allow for requests only from client
-	app.use(
-		cors({
-			origin: process.env.CLIENT_URL,
-			methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-			credentials: true, // allow session cookie from browser to pass through
-		})
-	);
-
 	app.use(morgan('dev')); // return information about each request
-}
+} 
+
+// allow for requests only from client
+app.use(
+	cors({
+		origin: process.env.CLIENT_URL,
+		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+		credentials: true, // allow session cookie from browser to pass through
+	})
+);
 
 // -- BODY PARSER MIDDLEWARE
 // ---- convert any json to js and call next()
