@@ -47,6 +47,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 
 // -- config for development
 if (process.env.NODE_ENV === 'development') {
+	console.log('dasdasd')
 	app.use(morgan('dev')); // return information about each request
 } 
 
