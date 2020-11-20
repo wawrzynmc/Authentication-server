@@ -10,7 +10,7 @@ const swaggerUi = require('swagger-ui-express');
 const accountRoutes = require('./routes/account-routes');
 const HttpError = require('./helpers/http-error');
 const connectMongoo = require('./config/connect-mongo');
-const { SERVER_ERROR } = require('./helpers/error-codes');
+const { SERVER_ERROR } = require('./helpers/codes/error-codes');
 
 // -- config .env to ./config/config.env
 require('dotenv').config({

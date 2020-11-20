@@ -23,7 +23,7 @@ const {
 	USER_ALREADY_ACTIVATED_ERROR,
 	USER_DOESNT_EXIST_ERROR,
 	INVALID_CREDENTIALS_ERROR,
-} = require('../helpers/error-codes');
+} = require('../helpers/codes/error-codes');
 const {
 	SIGNUP_SUCCESS,
 	SIGNIN_SUCCESS,
@@ -31,7 +31,7 @@ const {
 	SEND_ACTIVATION_EMAIL_SUCCESS,
 	SEND_RESET_PWD_EMAIL_SUCCESS,
 	PWD_CHANGED_SUCCESS,
-} = require('../helpers/success-codes');
+} = require('../helpers/codes/success-codes');
 
 // -- models
 const User = require('../models/user-model');

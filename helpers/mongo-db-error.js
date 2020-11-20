@@ -7,7 +7,7 @@
 */
 
 const HttpError = require('./http-error')
-const {SERVER_ERROR} = require('./error-codes')
+const {SERVER_ERROR} = require('./codes/error-codes')
 
 const uniqueMessage = error => {
     let output;
